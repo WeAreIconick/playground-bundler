@@ -169,6 +169,21 @@ class Playground_Bundler_Plugin {
             )
         ));
         
+        // Public download endpoint for WordPress Playground (no auth required)
+        register_rest_route('playground-bundler/v1', '/public/(?P<filename>[a-zA-Z0-9\-_\.]+)', array(
+            'methods' => array('GET', 'OPTIONS'),
+            'callback' => array($this, 'handle_public_file_download'),
+            'permission_callback' => '__return_true', // No authentication required
+            'args' => array(
+                'filename' => array(
+                    'required' => true,
+                    'validate_callback' => function($param) {
+                        return preg_match('/^[a-zA-Z0-9\-_\.]+$/', $param);
+                    }
+                )
+            )
+        ));
+        
         // Test endpoint to verify REST API is working
         register_rest_route('playground-bundler/v1', '/test', array(
             'methods' => 'GET',
@@ -298,12 +313,12 @@ class Playground_Bundler_Plugin {
             return new WP_Error('insufficient_permissions', __('You do not have permission to generate bundles for this post.', 'playground-bundler'), array('status' => 403));
         }
         
-        // Rate limiting: max 5 bundles per user per hour
+        // Rate limiting: max 20 bundles per user per hour (increased for development)
         $user_id = get_current_user_id();
         $rate_limit_key = 'playground_bundler_rate_' . $user_id;
         $rate_limit_count = get_transient($rate_limit_key);
         
-        if ($rate_limit_count && $rate_limit_count >= 5) {
+        if ($rate_limit_count && $rate_limit_count >= 20) {
             return new WP_Error('rate_limit_exceeded', __('Too many bundle generation requests. Please try again later.', 'playground-bundler'), array('status' => 429));
         }
         
@@ -342,7 +357,8 @@ class Playground_Bundler_Plugin {
             $bundle_name = pathinfo($bundle_filename, PATHINFO_FILENAME);
             
             $blueprint_filename = $bundle_name . '-blueprint.json';
-            $blueprint_url = rest_url('playground-bundler/v1/download/' . $blueprint_filename);
+            $upload_dir = wp_upload_dir();
+            $blueprint_url = $upload_dir['baseurl'] . '/playground-bundles/' . $blueprint_filename;
             
             // Log for debugging (only if WP_DEBUG is enabled)
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -412,6 +428,99 @@ class Playground_Bundler_Plugin {
         @unlink($bundle_path);
     }
     
+    public function handle_public_file_download($request) {
+        // Public endpoint - no authentication required
+        // This is specifically for WordPress Playground to access files
+        
+        // Handle CORS preflight requests
+        if ($request->get_method() === 'OPTIONS') {
+            header('Access-Control-Allow-Origin: *');
+            header('Access-Control-Allow-Methods: GET, OPTIONS');
+            header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
+            header('Access-Control-Max-Age: 86400');
+            return new WP_REST_Response(null, 200);
+        }
+        
+        $filename = $request->get_param('filename');
+        
+        // Security: Only allow specific file types and patterns
+        if (!preg_match('/^(playground-bundle-\d+-\d+-(blueprint\.json|.*\.zip)|[a-zA-Z0-9\-_]+\.zip)$/', $filename)) {
+            return new WP_Error('invalid_filename', __('Invalid filename format.', 'playground-bundler'), array('status' => 400));
+        }
+        
+        $upload_dir = wp_upload_dir();
+        
+        // Check both root directory and plugins subdirectory
+        $file_path = $upload_dir['basedir'] . '/playground-bundles/' . $filename;
+        error_log('Playground Bundler: Checking file at: ' . $file_path);
+        if (!file_exists($file_path)) {
+            $file_path = $upload_dir['basedir'] . '/playground-bundles/plugins/' . $filename;
+            error_log('Playground Bundler: File not found in root, checking: ' . $file_path);
+        }
+        
+        error_log('Playground Bundler: Final file path: ' . $file_path);
+        error_log('Playground Bundler: File exists: ' . (file_exists($file_path) ? 'YES' : 'NO'));
+        
+        if (!file_exists($file_path)) {
+            return new WP_Error('file_not_found', __('File not found.', 'playground-bundler'), array('status' => 404));
+        }
+        
+        // Get file content
+        $file_content = file_get_contents($file_path);
+        if ($file_content === false) {
+            return new WP_Error('file_read_error', __('Could not read file.', 'playground-bundler'), array('status' => 500));
+        }
+        
+        // Determine content type
+        $content_type = 'application/octet-stream';
+        if (strpos($filename, '.json') !== false) {
+            $content_type = 'application/json';
+        } elseif (strpos($filename, '.zip') !== false) {
+            $content_type = 'application/zip';
+        }
+        
+        // Use direct output for JSON files to avoid WordPress escaping
+        if (strpos($filename, '.json') !== false) {
+            // Clear any existing output
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
+            
+            // Set headers directly
+            header('Content-Type: ' . $content_type);
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Content-Length: ' . strlen($file_content));
+            header('Cache-Control: must-revalidate');
+            header('Expires: 0');
+            
+            // Output the file content directly
+            echo $file_content;
+            
+            // Exit to prevent WordPress from adding anything else
+            exit;
+        } else {
+            // Return file content with proper headers for non-JSON files
+            $response = new WP_REST_Response($file_content, 200);
+            $response->header('Content-Type', $content_type);
+            $response->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            $response->header('Content-Length', strlen($file_content));
+            $response->header('Cache-Control', 'must-revalidate');
+            $response->header('Expires', '0');
+            
+            return $response;
+        }
+    }
+    
+    public function add_cors_headers($served, $result, $request, $server) {
+        // Only add CORS headers for our public endpoint
+        if (strpos($request->get_route(), '/playground-bundler/v1/public/') !== false) {
+            header('Access-Control-Allow-Origin: *');
+            header('Access-Control-Allow-Methods: GET, OPTIONS');
+            header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
+        }
+        return $served;
+    }
+    
     public function handle_file_download($request) {
         $filename = $request['filename'];
         $upload_dir = wp_upload_dir();
@@ -471,11 +580,18 @@ class Playground_Bundler_Plugin {
         // Read file content
         $file_content = file_get_contents($real_file_path);
         if ($file_content === false) {
+            // Force log this even without WP_DEBUG
+            error_log('Playground Bundler: Failed to read file content');
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('Playground bundler: Failed to read file content');
             }
             return new WP_Error('file_read_error', __('Could not read file.', 'playground-bundler'), array('status' => 500));
         }
+        
+        // Force log this even without WP_DEBUG
+        error_log('Playground Bundler: Successfully read file, size: ' . strlen($file_content) . ' bytes');
+        error_log('Playground Bundler: File content preview: ' . substr($file_content, 0, 200) . '...');
+        error_log('Playground Bundler: File content end: ...' . substr($file_content, -200));
         
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('Playground bundler: Successfully read file, size: ' . strlen($file_content) . ' bytes');
@@ -489,15 +605,27 @@ class Playground_Bundler_Plugin {
             $content_type = 'application/zip';
         }
         
-        // Create response with proper headers
-        $response = new WP_REST_Response($file_content, 200);
-        $response->header('Content-Type', $content_type);
-        $response->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-        $response->header('Content-Length', strlen($file_content));
-        $response->header('Cache-Control', 'must-revalidate');
-        $response->header('Expires', '0');
+        // Force log this even without WP_DEBUG
+        error_log('Playground Bundler: About to return response, content length: ' . strlen($file_content));
         
-        return $response;
+        // Use direct output instead of WP_REST_Response to avoid truncation issues
+        // Clear any existing output
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+        
+        // Set headers directly
+        header('Content-Type: ' . $content_type);
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($file_content));
+        header('Cache-Control: must-revalidate');
+        header('Expires: 0');
+        
+        // Output the file content directly
+        echo $file_content;
+        
+        // Exit to prevent WordPress from adding anything else
+        exit;
     }
     
     public function add_admin_menu() {

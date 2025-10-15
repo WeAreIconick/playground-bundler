@@ -35,6 +35,8 @@ class Playground_Blueprint_Generator {
         // No need to create WordPress files ZIP - we'll handle plugins and media individually
         
         // Generate blueprint JSON
+        error_log('Playground Bundler: Starting bundle generation for post ID: ' . $this->post_id);
+        error_log('Playground Bundler: Analysis data: ' . print_r($this->analysis, true));
         $blueprint = $this->generate_blueprint_json();
         
         if (is_wp_error($blueprint)) {
@@ -44,8 +46,9 @@ class Playground_Blueprint_Generator {
         // Create final bundle with blueprint.json
         $bundle_path = $this->create_final_bundle($blueprint);
         
-        // Cleanup temporary plugin ZIPs
-        $this->cleanup_temp_files();
+        // Don't cleanup plugin ZIPs immediately - WordPress Playground needs them
+        // They will be cleaned up by the scheduled cleanup process
+        // $this->cleanup_temp_files();
         
         return $bundle_path;
     }
@@ -87,30 +90,44 @@ class Playground_Blueprint_Generator {
         
         // Install and activate custom block plugins
         $installed_plugins = array();
+        error_log('Playground Bundler: Custom blocks found: ' . print_r($this->analysis['custom_blocks'], true));
         foreach ($this->analysis['custom_blocks'] as $block_name) {
+            error_log('Playground Bundler: Processing custom block: ' . $block_name);
             $plugin_info = $this->get_plugin_for_block($block_name);
             
-            if ($plugin_info && !in_array($plugin_info['plugin_file'], $installed_plugins)) {
-                // Create plugin ZIP and get URL
-                $plugin_zip_path = $this->create_plugin_zip($plugin_info);
-                if ($plugin_zip_path && !is_wp_error($plugin_zip_path)) {
-                    $upload_dir = wp_upload_dir();
-                    $plugin_zip_filename = basename($plugin_zip_path);
-                    $plugin_zip_url = $upload_dir['baseurl'] . '/playground-bundles/' . $plugin_zip_filename;
-                    
-                    $blueprint['steps'][] = array(
-                        'step' => 'installPlugin',
-                        'pluginZipFile' => array(
-                            'resource' => 'url',
-                            'url' => $plugin_zip_url
-                        ),
-                        'options' => array(
-                            'activate' => true
-                        )
-                    );
-                    
-                    $installed_plugins[] = $plugin_info['plugin_file'];
+            if ($plugin_info) {
+                error_log('Playground Bundler: Found plugin info for ' . $block_name . ': ' . print_r($plugin_info, true));
+                error_log('Playground Bundler: Plugin file: ' . $plugin_info['plugin_file']);
+                error_log('Playground Bundler: Plugin path: ' . $plugin_info['plugin_path']);
+                error_log('Playground Bundler: Plugin dir: ' . $plugin_info['plugin_dir']);
+                if (!in_array($plugin_info['plugin_file'], $installed_plugins)) {
+                    // Create plugin ZIP and get URL
+                    $plugin_zip_path = $this->create_plugin_zip($plugin_info);
+                    if ($plugin_zip_path && !is_wp_error($plugin_zip_path)) {
+                        error_log('Playground Bundler: Successfully created plugin ZIP: ' . $plugin_zip_path);
+                        $plugin_zip_filename = basename($plugin_zip_path);
+                        // Use direct URL for WordPress Playground access
+                        $upload_dir = wp_upload_dir();
+                        $plugin_zip_url = $upload_dir['baseurl'] . '/playground-bundles/plugins/' . $plugin_zip_filename;
+                        
+                        $blueprint['steps'][] = array(
+                            'step' => 'installPlugin',
+                            'pluginData' => array(
+                                'resource' => 'url',
+                                'url' => $plugin_zip_url
+                            ),
+                            'options' => array(
+                                'activate' => true
+                            )
+                        );
+                        
+                        $installed_plugins[] = $plugin_info['plugin_file'];
+                    } else {
+                        error_log('Playground Bundler: Failed to create plugin ZIP for ' . $block_name . ': ' . (is_wp_error($plugin_zip_path) ? $plugin_zip_path->get_error_message() : 'Unknown error'));
+                    }
                 }
+            } else {
+                error_log('Playground Bundler: No plugin info found for block: ' . $block_name);
             }
         }
         
@@ -242,6 +259,7 @@ class Playground_Blueprint_Generator {
     
     private function create_plugin_zip($plugin_info) {
         if (!isset($plugin_info['plugin_path']) || !is_dir($plugin_info['plugin_path'])) {
+            error_log('Playground Bundler: Plugin directory not found: ' . (isset($plugin_info['plugin_path']) ? $plugin_info['plugin_path'] : 'not set'));
             return new WP_Error('invalid_plugin', __('Plugin directory not found.', 'playground-bundler'));
         }
         
@@ -249,7 +267,12 @@ class Playground_Blueprint_Generator {
         $real_plugin_path = realpath($plugin_info['plugin_path']);
         $real_wp_plugins_dir = realpath(WP_PLUGIN_DIR);
         
+        error_log('Playground Bundler: Plugin path: ' . $plugin_info['plugin_path']);
+        error_log('Playground Bundler: Real plugin path: ' . $real_plugin_path);
+        error_log('Playground Bundler: WP plugins dir: ' . $real_wp_plugins_dir);
+        
         if (!$real_plugin_path || strpos($real_plugin_path, $real_wp_plugins_dir) !== 0) {
+            error_log('Playground Bundler: Invalid plugin path - not within WP plugins directory');
             return new WP_Error('invalid_plugin_path', __('Invalid plugin path.', 'playground-bundler'));
         }
         
@@ -260,6 +283,9 @@ class Playground_Blueprint_Generator {
         $zip_filename = sanitize_file_name($plugin_info['plugin_dir']) . '.zip';
         $zip_path = $temp_dir . $zip_filename;
         
+        error_log('Playground Bundler: Creating ZIP at: ' . $zip_path);
+        error_log('Playground Bundler: ZIP filename: ' . $zip_filename);
+        
         // Delete existing ZIP if present
         if (file_exists($zip_path)) {
             @unlink($zip_path);
@@ -268,17 +294,23 @@ class Playground_Blueprint_Generator {
         $zip = new ZipArchive();
         
         if ($zip->open($zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            error_log('Playground Bundler: Failed to open ZIP file: ' . $zip_path);
             return new WP_Error('zip_error', __('Failed to create plugin ZIP.', 'playground-bundler'));
         }
         
         // Add all files from plugin directory with security checks
+        // Don't include plugin directory name in ZIP path - WordPress expects files at root level
         $this->add_directory_to_zip(
             $zip, 
             $plugin_info['plugin_path'],
-            $plugin_info['plugin_dir']
+            '' // Empty string means files go to root of ZIP
         );
         
         $zip->close();
+        
+        error_log('Playground Bundler: ZIP created successfully: ' . $zip_path);
+        error_log('Playground Bundler: ZIP file exists: ' . (file_exists($zip_path) ? 'YES' : 'NO'));
+        error_log('Playground Bundler: ZIP file size: ' . (file_exists($zip_path) ? filesize($zip_path) : 'N/A') . ' bytes');
         
         return $zip_path;
     }
@@ -336,8 +368,8 @@ class Playground_Blueprint_Generator {
         $php .= "// Delete any existing post with ID 5 to avoid conflicts\n";
         $php .= "wp_delete_post(5, true);\n";
         $php .= "\n";
+        $php .= "// Create post without specifying ID first\n";
         $php .= "\$post_data = array(\n";
-        $php .= "    'ID' => 5,\n";
         $php .= "    'post_title' => '{$title}',\n";
         $php .= "    'post_content' => '{$content}',\n";
         $php .= "    'post_type' => '{$post_type}',\n";
@@ -346,11 +378,30 @@ class Playground_Blueprint_Generator {
         $php .= ");\n";
         $php .= "\$post_id = wp_insert_post(\$post_data);\n";
         $php .= "\n";
-        $php .= "// Ensure we got the expected post ID\n";
-        $php .= "if (\$post_id !== 5) {\n";
-        $php .= "    // If insert failed, try update\n";
+        $php .= "// If we got a different ID, update the post to use ID 5\n";
+        $php .= "if (\$post_id && \$post_id !== 5) {\n";
+        $php .= "    // First, delete the post we just created\n";
+        $php .= "    wp_delete_post(\$post_id, true);\n";
+        $php .= "    \n";
+        $php .= "    // Now create with specific ID using wp_update_post\n";
         $php .= "    \$post_data['ID'] = 5;\n";
         $php .= "    \$post_id = wp_update_post(\$post_data);\n";
+        $php .= "    \n";
+        $php .= "    // If that failed, try direct database insert\n";
+        $php .= "    if (!\$post_id || is_wp_error(\$post_id)) {\n";
+        $php .= "        global \$wpdb;\n";
+        $php .= "        \$wpdb->insert(\$wpdb->posts, array(\n";
+        $php .= "            'ID' => 5,\n";
+        $php .= "            'post_title' => '{$title}',\n";
+        $php .= "            'post_content' => '{$content}',\n";
+        $php .= "            'post_type' => '{$post_type}',\n";
+        $php .= "            'post_status' => '{$post_status}',\n";
+        $php .= "            'post_author' => 1,\n";
+        $php .= "            'post_date' => current_time('mysql'),\n";
+        $php .= "            'post_date_gmt' => current_time('mysql', 1)\n";
+        $php .= "        ));\n";
+        $php .= "        \$post_id = 5;\n";
+        $php .= "    }\n";
         $php .= "}\n";
         
         // Add post meta if needed
@@ -540,12 +591,58 @@ class Playground_Blueprint_Generator {
     }
     
     private function is_dangerous_file($filename) {
-        $dangerous_extensions = array('php', 'phtml', 'php3', 'php4', 'php5', 'pl', 'py', 'jsp', 'asp', 'sh', 'cgi');
-        $dangerous_files = array('.htaccess', 'web.config', '.env', 'composer.json', 'package.json');
+        // Allow WordPress plugin files
+        $allowed_extensions = array('php', 'js', 'css', 'scss', 'json', 'txt', 'md');
+        
+        // Exclude dangerous extensions (but allow PHP for WordPress plugins)
+        $dangerous_extensions = array('phtml', 'php3', 'php4', 'php5', 'pl', 'py', 'jsp', 'asp', 'sh', 'cgi');
+        
+        // Exclude development and debug files
+        $development_files = array(
+            'artefact.xml',
+            'package-lock.json',
+            'composer.json',
+            'package.json',
+            '.htaccess',
+            'web.config',
+            '.env'
+        );
+        
+        // Exclude files that start with debug- or test-
+        $development_patterns = array(
+            'debug-',
+            'test-',
+            '.git',
+            'node_modules',
+            'vendor'
+        );
         
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         $basename = strtolower(basename($filename));
+        $path_parts = explode('/', strtolower($filename));
         
-        return in_array($extension, $dangerous_extensions) || in_array($basename, $dangerous_files);
+        // Check for development files
+        if (in_array($basename, $development_files)) {
+            return true;
+        }
+        
+        // Check for development patterns
+        foreach ($development_patterns as $pattern) {
+            if (strpos($basename, $pattern) === 0) {
+                return true;
+            }
+        }
+        
+        // Check for dangerous extensions
+        if (in_array($extension, $dangerous_extensions)) {
+            return true;
+        }
+        
+        // Only allow specific file types for WordPress plugins
+        if (!in_array($extension, $allowed_extensions)) {
+            return true;
+        }
+        
+        return false;
     }
 }

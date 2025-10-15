@@ -127,7 +127,25 @@ const PlaygroundBundlerSidebar = () => {
 				'playground-bundler'
 			);
 
-			if ( err.message ) {
+			console.error('Playground Bundler: Bundle generation error:', err);
+			
+			// Check for HTTP status codes first
+			if (err.status === 429) {
+				errorMessage = __(
+					'Too many requests. Please wait 30 seconds before trying again.',
+					'playground-bundler'
+				);
+			} else if (err.status === 403) {
+				errorMessage = __(
+					'Permission denied. Please refresh the page and try again.',
+					'playground-bundler'
+				);
+			} else if (err.status === 500) {
+				errorMessage = __(
+					'Server error. Please try again in a moment.',
+					'playground-bundler'
+				);
+			} else if ( err.message ) {
 				if ( err.message.includes( 'rate_limit' ) ) {
 					errorMessage = __(
 						'Too many requests. Please wait before trying again.',
@@ -179,8 +197,24 @@ const PlaygroundBundlerSidebar = () => {
 			
 			console.log('Playground Bundler: Download response received');
 			
-			// Get the blob from the response
-			const blob = await response.blob();
+			// Get the text content and parse it as JSON to ensure it's valid
+			const jsonText = await response.text();
+			console.log('Playground Bundler: Raw response length:', jsonText.length);
+			console.log('Playground Bundler: Raw response preview:', jsonText.substring(0, 200) + '...');
+			console.log('Playground Bundler: Raw response end:', '...' + jsonText.substring(jsonText.length - 200));
+			
+			// Check if the response looks truncated
+			if (!jsonText.trim().endsWith('}')) {
+				console.error('Playground Bundler: Response appears truncated - does not end with }');
+				throw new Error('Response appears to be truncated or corrupted');
+			}
+			
+			// Parse and re-stringify to ensure proper formatting
+			const jsonData = JSON.parse(jsonText);
+			const formattedJson = JSON.stringify(jsonData, null, 2);
+			
+			// Create blob with properly formatted JSON
+			const blob = new Blob([formattedJson], { type: 'application/json' });
 			const url = window.URL.createObjectURL(blob);
 			
 			const blueprintLink = document.createElement('a');
@@ -213,11 +247,24 @@ const PlaygroundBundlerSidebar = () => {
 			return;
 		}
 
-		window.open(
-			bundleData.playground_url,
-			'_blank',
-			'noopener,noreferrer'
-		);
+		try {
+			console.log('Playground Bundler: Opening in WordPress Playground...');
+
+			// Use the public blueprint URL directly
+			const playgroundUrl = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(bundleData.blueprint_url);
+
+			console.log('Playground Bundler: Opening URL:', playgroundUrl);
+
+			window.open(
+				playgroundUrl,
+				'_blank',
+				'noopener,noreferrer'
+			);
+
+		} catch (error) {
+			console.error('Playground Bundler: Error opening in playground:', error);
+			setError('Failed to open in WordPress Playground. Please try downloading the file instead.');
+		}
 	};
 
 	const handleRegenerateBundle = () => {
