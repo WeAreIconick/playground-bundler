@@ -93,3 +93,4 @@ The generated blueprint follows the WordPress Playground schema and includes log
 
 = 1.0.0 =
 Initial release of WordPress Playground Blueprint Bundler.
+

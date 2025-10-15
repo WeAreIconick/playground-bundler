@@ -8,6 +8,11 @@ class Playground_Asset_Detector {
     private $block_types = array();
     
     public function __construct($post_id) {
+        // Safety check - prevent execution during plugin deletion
+        if (defined('WP_UNINSTALL_PLUGIN')) {
+            return;
+        }
+        
         $this->post_id = absint($post_id);
     }
     
@@ -161,3 +166,4 @@ class Playground_Asset_Detector {
         return $custom;
     }
 }
+

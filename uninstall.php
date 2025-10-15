@@ -37,16 +37,20 @@ $bundle_dir = $upload_dir['basedir'] . '/playground-bundles/';
 if (is_dir($bundle_dir)) {
     // Remove all files in the bundle directory
     $files = glob($bundle_dir . '*');
-    foreach ($files as $file) {
-        if (is_file($file)) {
-            @unlink($file);
+    if ($files) {
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                @unlink($file);
+            }
         }
     }
     
     // Remove subdirectories
     $subdirs = glob($bundle_dir . '*', GLOB_ONLYDIR);
-    foreach ($subdirs as $subdir) {
-        $this->remove_directory($subdir);
+    if ($subdirs) {
+        foreach ($subdirs as $subdir) {
+            remove_directory($subdir);
+        }
     }
     
     // Remove the main bundle directory
@@ -58,7 +62,7 @@ if (is_dir($bundle_dir)) {
  */
 function remove_directory($dir) {
     if (!is_dir($dir)) {
-        return;
+        return false;
     }
     
     $files = array_diff(scandir($dir), array('.', '..'));
@@ -72,7 +76,7 @@ function remove_directory($dir) {
         }
     }
     
-    @rmdir($dir);
+    return @rmdir($dir);
 }
 
 // Remove any custom database tables if they exist
@@ -81,3 +85,4 @@ function remove_directory($dir) {
 
 // Clear any cached data
 wp_cache_flush();
+
