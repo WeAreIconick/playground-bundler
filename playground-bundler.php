@@ -35,8 +35,21 @@ class Playground_Bundler_Plugin {
         add_action('rest_api_init', array($this, 'register_rest_routes'));
         add_action('admin_menu', array($this, 'add_admin_menu'));
         
-        require_once plugin_dir_path(__FILE__) . 'includes/class-asset-detector.php';
-        require_once plugin_dir_path(__FILE__) . 'includes/class-blueprint-generator.php';
+        // Load required class files with safety checks
+        $asset_detector_file = plugin_dir_path(__FILE__) . 'includes/class-asset-detector.php';
+        $blueprint_generator_file = plugin_dir_path(__FILE__) . 'includes/class-blueprint-generator.php';
+        
+        if (file_exists($asset_detector_file)) {
+            require_once $asset_detector_file;
+        } else {
+            error_log('Playground Bundler: Asset detector file not found: ' . $asset_detector_file);
+        }
+        
+        if (file_exists($blueprint_generator_file)) {
+            require_once $blueprint_generator_file;
+        } else {
+            error_log('Playground Bundler: Blueprint generator file not found: ' . $blueprint_generator_file);
+        }
     }
     
     public function enqueue_editor_assets() {
@@ -273,6 +286,11 @@ class Playground_Bundler_Plugin {
         }
         
         try {
+            // Check if class exists before instantiating
+            if (!class_exists('Playground_Asset_Detector')) {
+                return new WP_Error('class_not_found', __('Asset detector class not found. Please check plugin installation.', 'playground-bundler'), array('status' => 500));
+            }
+            
             $detector = new Playground_Asset_Detector($post_id);
             $analysis = $detector->analyze();
             
@@ -334,6 +352,11 @@ class Playground_Bundler_Plugin {
         @set_time_limit(300);
         
         try {
+            // Check if class exists before instantiating
+            if (!class_exists('Playground_Blueprint_Generator')) {
+                return new WP_Error('class_not_found', __('Blueprint generator class not found. Please check plugin installation.', 'playground-bundler'), array('status' => 500));
+            }
+            
             $generator = new Playground_Blueprint_Generator($post_id);
             $bundle_path = $generator->create_bundle();
             

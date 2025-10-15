@@ -80,6 +80,12 @@ class Playground_Blueprint_Generator {
             'password' => 'password'
         );
         
+        // Set permalink structure to "Post name" for proper URLs
+        $blueprint['steps'][] = array(
+            'step' => 'runPHP',
+            'code' => "<?php\nrequire_once '/wordpress/wp-load.php';\n\n// Set permalink structure to 'Post name' (%postname%)\nupdate_option('permalink_structure', '/%postname%/');\n\n// Flush rewrite rules to apply the new structure\nflush_rewrite_rules();\n?>"
+        );
+        
         // Upload media files using runPHP
         if (!empty($this->analysis['media_assets'])) {
             $blueprint['steps'][] = array(
@@ -371,6 +377,7 @@ class Playground_Blueprint_Generator {
         $php .= "// Create post without specifying ID first\n";
         $php .= "\$post_data = array(\n";
         $php .= "    'post_title' => '{$title}',\n";
+        $php .= "    'post_name' => 'readme',\n";
         $php .= "    'post_content' => '{$content}',\n";
         $php .= "    'post_type' => '{$post_type}',\n";
         $php .= "    'post_status' => '{$post_status}',\n";
@@ -393,6 +400,7 @@ class Playground_Blueprint_Generator {
         $php .= "        \$wpdb->insert(\$wpdb->posts, array(\n";
         $php .= "            'ID' => 5,\n";
         $php .= "            'post_title' => '{$title}',\n";
+        $php .= "            'post_name' => 'readme',\n";
         $php .= "            'post_content' => '{$content}',\n";
         $php .= "            'post_type' => '{$post_type}',\n";
         $php .= "            'post_status' => '{$post_status}',\n";
@@ -415,6 +423,10 @@ class Playground_Blueprint_Generator {
                 }
             }
         }
+        
+        // Flush rewrite rules after post creation to ensure permalinks work
+        $php .= "\n// Flush rewrite rules to ensure the new post is accessible\n";
+        $php .= "flush_rewrite_rules();\n";
         
         $php .= "?>";
         
