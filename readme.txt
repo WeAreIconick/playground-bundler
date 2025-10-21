@@ -1,4 +1,4 @@
-=== WordPress Playground Blueprint Bundler ===
+=== Playground Bundler ===
 Contributors: iconick
 Tags: wordpress, playground, blueprint, bundler, blocks
 Requires at least: 6.0
@@ -8,11 +8,19 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Export page content and blocks into a WordPress Playground blueprint bundle.
+Create portable WordPress environments by bundling your content, blocks, and plugins into shareable Playground blueprints.
 
 == Description ==
 
-The WordPress Playground Blueprint Bundler plugin enables developers to create portable, instantly-runnable WordPress configurations through JSON blueprints. The plugin detects all blocks and media assets on a page, then bundles them into a downloadable blueprint that recreates that exact environment.
+The Playground Bundler plugin transforms any WordPress page into a portable, instantly-runnable environment. Simply select your content, and the plugin automatically detects all blocks, media assets, and custom plugins, then bundles everything into a shareable WordPress Playground blueprint.
+
+**Why Use Playground Bundler?**
+
+* **Instant Demos** - Share your WordPress creations with anyone, anywhere, instantly
+* **Zero Setup** - Recipients don't need WordPress installed - just click and run
+* **Complete Environments** - Includes custom plugins, themes, content, and configurations
+* **Developer Friendly** - Perfect for showcasing plugins, themes, or custom solutions
+* **Client Presentations** - Demonstrate your work in a live, interactive environment
 
 **Key Features:**
 
@@ -92,5 +100,5 @@ The generated blueprint follows the WordPress Playground schema and includes log
 == Upgrade Notice ==
 
 = 1.0.0 =
-Initial release of WordPress Playground Blueprint Bundler.
+Initial release of Playground Bundler.
 

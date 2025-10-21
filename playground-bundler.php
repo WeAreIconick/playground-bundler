@@ -1,11 +1,11 @@
 <?php
 /**
- * Plugin Name: WordPress Playground Blueprint Bundler
- * Description: Exports page content and blocks into a WordPress Playground blueprint
+ * Plugin Name: Playground Bundler
+ * Description: Create portable WordPress environments by bundling your content, blocks, and plugins into shareable Playground blueprints
  * Version: 1.0.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
- * Author: Your Name
+ * Author: iconick
  * License: GPL v2 or later
  * Text Domain: playground-bundler
  */
@@ -22,18 +22,10 @@ class Playground_Bundler_Plugin {
             return;
         }
         
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Playground bundler: Plugin constructor called');
-        }
-        
-        // Force log this even without WP_DEBUG to see if it's running
-        error_log('Playground Bundler: Plugin constructor called - this should appear in logs');
-        
         add_action('enqueue_block_editor_assets', array($this, 'enqueue_editor_assets'));
         add_action('enqueue_block_assets', array($this, 'enqueue_editor_assets'));
         add_action('admin_enqueue_scripts', array($this, 'maybe_enqueue_editor_assets'));
         add_action('rest_api_init', array($this, 'register_rest_routes'));
-        add_action('admin_menu', array($this, 'add_admin_menu'));
         
         // Load required class files with safety checks
         $asset_detector_file = plugin_dir_path(__FILE__) . 'includes/class-asset-detector.php';
@@ -41,35 +33,20 @@ class Playground_Bundler_Plugin {
         
         if (file_exists($asset_detector_file)) {
             require_once $asset_detector_file;
-        } else {
-            error_log('Playground Bundler: Asset detector file not found: ' . $asset_detector_file);
         }
         
         if (file_exists($blueprint_generator_file)) {
             require_once $blueprint_generator_file;
-        } else {
-            error_log('Playground Bundler: Blueprint generator file not found: ' . $blueprint_generator_file);
         }
     }
     
     public function enqueue_editor_assets() {
         // Safety check
         if (defined('WP_UNINSTALL_PLUGIN') || !file_exists(plugin_dir_path(__FILE__) . 'build/index.js')) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Playground bundler: Skipping asset enqueue - file not found or uninstalling');
-                error_log('Playground bundler: File path: ' . plugin_dir_path(__FILE__) . 'build/index.js');
-                error_log('Playground bundler: File exists: ' . (file_exists(plugin_dir_path(__FILE__) . 'build/index.js') ? 'yes' : 'no'));
-            }
             return;
         }
         
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Playground bundler: Enqueuing editor assets');
-            $current_screen = function_exists('get_current_screen') ? get_current_screen() : null;
-            error_log('Playground bundler: Current screen: ' . ($current_screen ? $current_screen->id : 'unknown'));
-        }
-        
-        // Ensure WordPress editor scripts are loaded (with error handling)
+        // Ensure WordPress editor scripts are loaded
         $wp_scripts = array('wp-editor', 'wp-plugins', 'wp-element', 'wp-components', 'wp-data', 'wp-i18n', 'wp-blocks', 'wp-block-editor', 'wp-api-fetch');
         foreach ($wp_scripts as $script) {
             if (wp_script_is($script, 'registered')) {
@@ -102,12 +79,6 @@ class Playground_Bundler_Plugin {
                 'nonce' => wp_create_nonce('wp_rest')
             )
         );
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Playground bundler: Script enqueued successfully');
-            error_log('Playground bundler: Script URL: ' . plugins_url('build/index.js', __FILE__));
-            error_log('Playground bundler: Nonce created: ' . wp_create_nonce('wp_rest'));
-        }
     }
     
     public function maybe_enqueue_editor_assets($hook) {
@@ -124,21 +95,10 @@ class Playground_Bundler_Plugin {
             }
         }
         
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Playground bundler: maybe_enqueue_editor_assets called for hook: ' . $hook);
-        }
-        
         $this->enqueue_editor_assets();
     }
     
     public function register_rest_routes() {
-        // Debug: Log that we're registering routes
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Playground bundler: Registering REST API routes');
-        }
-        
-        // Force log this even without WP_DEBUG to see if it's running
-        error_log('Playground Bundler: REST API registration called - this should appear in logs');
         
         register_rest_route('playground-bundler/v1', '/bundle/(?P<post_id>\d+)', array(
             'methods' => 'POST',
@@ -196,22 +156,6 @@ class Playground_Bundler_Plugin {
                 )
             )
         ));
-        
-        // Test endpoint to verify REST API is working
-        register_rest_route('playground-bundler/v1', '/test', array(
-            'methods' => 'GET',
-            'callback' => array($this, 'handle_test_endpoint'),
-            'permission_callback' => '__return_true'
-        ));
-        
-        // Simple test endpoint without any authentication
-        register_rest_route('playground-bundler/v1', '/ping', array(
-            'methods' => 'GET',
-            'callback' => function() {
-                return new WP_REST_Response(array('status' => 'ok', 'message' => 'REST API working'), 200);
-            },
-            'permission_callback' => '__return_true'
-        ));
     }
     
     public function permissions_check($request) {
@@ -219,12 +163,8 @@ class Playground_Bundler_Plugin {
             return new WP_Error('not_logged_in', __('You must be logged in to access this endpoint.', 'playground-bundler'), array('status' => 401));
         }
         
-        // Verify nonce for security (with debugging)
+        // Verify nonce for security
         $nonce = $request->get_header('X-WP-Nonce');
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Playground bundler: Nonce received: ' . ($nonce ?: 'none'));
-            error_log('Playground bundler: Nonce verification: ' . (wp_verify_nonce($nonce, 'wp_rest') ? 'valid' : 'invalid'));
-        }
         if (!$nonce || !wp_verify_nonce($nonce, 'wp_rest')) {
             return new WP_Error('invalid_nonce', __('Security check failed.', 'playground-bundler'), array('status' => 403));
         }
@@ -258,14 +198,6 @@ class Playground_Bundler_Plugin {
         }
         
         return true;
-    }
-    
-    public function handle_test_endpoint($request) {
-        return new WP_REST_Response(array(
-            'success' => true,
-            'message' => 'REST API is working',
-            'timestamp' => current_time('mysql')
-        ), 200);
     }
     
     public function handle_content_analysis($request) {
@@ -309,7 +241,6 @@ class Playground_Bundler_Plugin {
             ), 200);
             
         } catch (Exception $e) {
-            error_log('Playground bundler analysis error: ' . $e->getMessage());
             return new WP_Error('analysis_failed', __('Failed to analyze content.', 'playground-bundler'), array('status' => 500));
         }
     }
@@ -383,12 +314,6 @@ class Playground_Bundler_Plugin {
             $upload_dir = wp_upload_dir();
             $blueprint_url = $upload_dir['baseurl'] . '/playground-bundles/' . $blueprint_filename;
             
-            // Log for debugging (only if WP_DEBUG is enabled)
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Playground bundler: Generated blueprint filename: ' . $blueprint_filename);
-                error_log('Playground bundler: Blueprint URL: ' . $blueprint_url);
-            }
-            
             return new WP_REST_Response(array(
                 'success' => true,
                 'data' => array(
@@ -399,7 +324,6 @@ class Playground_Bundler_Plugin {
             ), 200);
             
         } catch (Exception $e) {
-            error_log('Playground bundle error: ' . $e->getMessage());
             return new WP_Error('bundle_failed', __('Failed to generate bundle.', 'playground-bundler'), array('status' => 500));
         }
     }
@@ -412,7 +336,6 @@ class Playground_Bundler_Plugin {
         // Ensure the bundles directory exists
         $bundles_dir = $upload_dir['basedir'] . '/playground-bundles/';
         if (!wp_mkdir_p($bundles_dir)) {
-            error_log('Playground bundler: Failed to create bundles directory');
             return;
         }
         
@@ -423,28 +346,10 @@ class Playground_Bundler_Plugin {
             $blueprint_content = $zip->getFromName('blueprint.json');
             if ($blueprint_content !== false) {
                 $blueprint_file_path = $bundles_dir . $bundle_name . '-blueprint.json';
-                $result = file_put_contents($blueprint_file_path, $blueprint_content);
-                
-                if ($result === false) {
-                    if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('Playground bundler: Failed to write blueprint file to ' . $blueprint_file_path);
-                    }
-                } else {
-                    if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('Playground bundler: Successfully extracted blueprint to ' . $blueprint_file_path);
-                    }
-                }
-            } else {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Playground bundler: Failed to extract blueprint.json from bundle');
-                }
+                file_put_contents($blueprint_file_path, $blueprint_content);
             }
             
             $zip->close();
-        } else {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Playground bundler: Failed to open bundle ZIP file: ' . $bundle_path);
-            }
         }
         
         // Clean up the original bundle
@@ -651,127 +556,6 @@ class Playground_Bundler_Plugin {
         exit;
     }
     
-    public function add_admin_menu() {
-        add_management_page(
-            'Playground Bundler Debug',
-            'Playground Bundler Debug',
-            'manage_options',
-            'playground-bundler-debug',
-            array($this, 'debug_page')
-        );
-    }
-    
-    public function debug_page() {
-        // Check if plugin is active
-        $active_plugins = get_option('active_plugins', array());
-        $plugin_file = 'playground-bundler/playground-bundler.php';
-        $is_active = in_array($plugin_file, $active_plugins);
-        
-        echo '<div class="wrap">';
-        echo '<h1>WordPress Playground Blueprint Bundler - Debug Information</h1>';
-        
-        // Plugin Status
-        echo '<h2>Plugin Status</h2>';
-        echo '<p><strong>Plugin Active:</strong> ' . ($is_active ? '<span style="color: green;">Yes</span>' : '<span style="color: red;">No</span>') . '</p>';
-        
-        if (!$is_active) {
-            echo '<p style="color: red; background: #ffe6e6; padding: 10px; border-left: 4px solid #dc3232;"><strong>ERROR:</strong> Plugin is not active!</p>';
-            echo '</div>';
-            return;
-        }
-        
-        // REST API Status
-        echo '<h2>REST API Status</h2>';
-        $rest_url = rest_url('wp/v2/');
-        echo '<p><strong>REST API URL:</strong> <a href="' . esc_url($rest_url) . '" target="_blank">' . esc_html($rest_url) . '</a></p>';
-        
-        // Test our plugin endpoints
-        echo '<h2>Plugin REST Endpoints</h2>';
-        
-        $endpoints = array(
-            'ping' => rest_url('playground-bundler/v1/ping'),
-            'test' => rest_url('playground-bundler/v1/test'),
-        );
-        
-        foreach ($endpoints as $name => $url) {
-            echo '<p><strong>' . esc_html($name) . ':</strong> <a href="' . esc_url($url) . '" target="_blank">' . esc_html($url) . '</a></p>';
-            
-            // Test the endpoint
-            $response = wp_remote_get($url);
-            if (is_wp_error($response)) {
-                echo '<p style="color: red;">Error: ' . esc_html($response->get_error_message()) . '</p>';
-            } else {
-                $body = wp_remote_retrieve_body($response);
-                $code = wp_remote_retrieve_response_code($response);
-                echo '<p>Response Code: <strong>' . esc_html($code) . '</strong></p>';
-                echo '<p>Response Body: <pre style="background: #f1f1f1; padding: 10px; border-radius: 3px;">' . esc_html($body) . '</pre></p>';
-            }
-        }
-        
-        // JavaScript Assets
-        echo '<h2>JavaScript Assets</h2>';
-        $js_file = plugin_dir_path(__FILE__) . 'build/index.js';
-        echo '<p><strong>JS File Path:</strong> ' . esc_html($js_file) . '</p>';
-        echo '<p><strong>JS File Exists:</strong> ' . (file_exists($js_file) ? '<span style="color: green;">Yes</span>' : '<span style="color: red;">No</span>') . '</p>';
-        
-        if (file_exists($js_file)) {
-            echo '<p><strong>JS File Size:</strong> ' . esc_html(number_format(filesize($js_file))) . ' bytes</p>';
-            echo '<p><strong>JS File URL:</strong> <a href="' . esc_url(plugins_url('build/index.js', __FILE__)) . '" target="_blank">' . esc_html(plugins_url('build/index.js', __FILE__)) . '</a></p>';
-        }
-        
-        // WordPress Debug Settings
-        echo '<h2>WordPress Debug Settings</h2>';
-        echo '<p><strong>WP_DEBUG:</strong> ' . (defined('WP_DEBUG') && WP_DEBUG ? '<span style="color: green;">Enabled</span>' : '<span style="color: orange;">Disabled</span>') . '</p>';
-        echo '<p><strong>WP_DEBUG_LOG:</strong> ' . (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG ? '<span style="color: green;">Enabled</span>' : '<span style="color: orange;">Disabled</span>') . '</p>';
-        
-        // Check error log location
-        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-            $log_file = WP_CONTENT_DIR . '/debug.log';
-            echo '<p><strong>Debug Log:</strong> <a href="' . esc_url($log_file) . '" target="_blank">' . esc_html($log_file) . '</a></p>';
-            
-            // Show recent debug log entries
-            if (file_exists($log_file)) {
-                $log_content = file_get_contents($log_file);
-                $log_lines = explode("\n", $log_content);
-                $recent_lines = array_slice($log_lines, -20); // Last 20 lines
-                $recent_content = implode("\n", $recent_lines);
-                
-                echo '<h3>Recent Debug Log Entries</h3>';
-                echo '<pre style="background: #f1f1f1; padding: 10px; border-radius: 3px; max-height: 300px; overflow-y: auto;">' . esc_html($recent_content) . '</pre>';
-            }
-        }
-        
-        // Current Screen Context
-        echo '<h2>Current Context</h2>';
-        $current_screen = get_current_screen();
-        echo '<p><strong>Current Screen:</strong> ' . esc_html($current_screen ? $current_screen->id : 'Unknown') . '</p>';
-        echo '<p><strong>Is Block Editor:</strong> ' . (function_exists('is_block_editor') && is_block_editor() ? '<span style="color: green;">Yes</span>' : '<span style="color: orange;">No</span>') . '</p>';
-        
-        // Plugin Class Status
-        echo '<h2>Plugin Class</h2>';
-        echo '<p><strong>Plugin Class Exists:</strong> ' . (class_exists('Playground_Bundler_Plugin') ? '<span style="color: green;">Yes</span>' : '<span style="color: red;">No</span>') . '</p>';
-        
-        // Test JavaScript Loading
-        echo '<h2>JavaScript Test</h2>';
-        echo '<p>Open browser console and check for:</p>';
-        echo '<ul>';
-        echo '<li><code>playgroundBundler</code> object should be available</li>';
-        echo '<li>No JavaScript errors</li>';
-        echo '<li>Plugin sidebar should appear in block editor</li>';
-        echo '</ul>';
-        
-        echo '<h2>Instructions</h2>';
-        echo '<ol>';
-        echo '<li>Make sure the plugin is active (✓ Done)</li>';
-        echo '<li>Test the REST API endpoints above</li>';
-        echo '<li>Check if JavaScript file is accessible</li>';
-        echo '<li>Enable WP_DEBUG in wp-config.php to see error logs</li>';
-        echo '<li>Try the plugin in the block editor (edit a post/page)</li>';
-        echo '<li>Check browser console for JavaScript errors</li>';
-        echo '</ol>';
-        
-        echo '</div>';
-    }
 }
 
 new Playground_Bundler_Plugin();

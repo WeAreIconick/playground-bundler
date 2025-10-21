@@ -1,7 +1,7 @@
 {
   "name": "playground-bundler",
   "version": "1.0.0",
-  "description": "WordPress Playground Blueprint Bundler Plugin",
+  "description": "Create portable WordPress environments by bundling content, blocks, and plugins into shareable Playground blueprints",
   "main": "src/index.js",
   "scripts": {
     "start": "wp-scripts start",
@@ -33,6 +33,6 @@
     "blueprint",
     "bundler"
   ],
-  "author": "Your Name",
+  "author": "iconick",
   "license": "GPL-2.0-or-later"
 }
