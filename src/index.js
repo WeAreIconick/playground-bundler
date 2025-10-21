@@ -7,23 +7,6 @@ import { store as blockEditorStore } from '@wordpress/block-editor';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
-// Debug: Log that the script is loading
-console.log('Playground Bundler: JavaScript loaded successfully');
-console.log('Playground Bundler: playgroundBundler object:', window.playgroundBundler);
-
-// Check if WordPress dependencies are available
-console.log('Playground Bundler: wp.plugins available:', !!window.wp?.plugins);
-console.log('Playground Bundler: wp.editor available:', !!window.wp?.editor);
-console.log('Playground Bundler: wp.components available:', !!window.wp?.components);
-console.log('Playground Bundler: wp.element available:', !!window.wp?.element);
-console.log('Playground Bundler: wp.data available:', !!window.wp?.data);
-console.log('Playground Bundler: wp.blockEditor available:', !!window.wp?.blockEditor);
-console.log('Playground Bundler: wp.i18n available:', !!window.wp?.i18n);
-console.log('Playground Bundler: wp.apiFetch available:', !!window.wp?.apiFetch);
-
-// Debug: Check if we can register the plugin
-console.log('Playground Bundler: Attempting to register plugin...');
-
 const PlaygroundBundlerSidebar = () => {
 	const [ isGenerating, setIsGenerating ] = useState( false );
 	const [ isAnalyzing, setIsAnalyzing ] = useState( false );
@@ -52,9 +35,6 @@ const PlaygroundBundlerSidebar = () => {
 		setError( null );
 
 		try {
-			console.log('Playground Bundler: Making analyze request...');
-			console.log('Playground Bundler: REST URL:', playgroundBundler.restUrl + 'analyze/' + postId);
-			console.log('Playground Bundler: Using nonce:', playgroundBundler.nonce);
 			
 			// Force REST API usage by using full URL
 			const response = await apiFetch( {
@@ -98,8 +78,6 @@ const PlaygroundBundlerSidebar = () => {
 		setBundleData( null );
 
 		try {
-			console.log('Playground Bundler: Making bundle request...');
-			console.log('Playground Bundler: REST URL:', playgroundBundler.restUrl + 'bundle/' + postId);
 			
 			// Force REST API usage by using full URL
 			const response = await apiFetch( {
@@ -179,9 +157,6 @@ const PlaygroundBundlerSidebar = () => {
 		}
 
 		try {
-			console.log('Playground Bundler: Starting download...');
-			console.log('Playground Bundler: Download URL:', bundleData.blueprint_url);
-			console.log('Playground Bundler: Nonce:', playgroundBundler.nonce);
 			
 			// Use fetch to download with proper authentication
 			const response = await fetch(bundleData.blueprint_url, {
@@ -195,17 +170,11 @@ const PlaygroundBundlerSidebar = () => {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 			
-			console.log('Playground Bundler: Download response received');
-			
 			// Get the text content and parse it as JSON to ensure it's valid
 			const jsonText = await response.text();
-			console.log('Playground Bundler: Raw response length:', jsonText.length);
-			console.log('Playground Bundler: Raw response preview:', jsonText.substring(0, 200) + '...');
-			console.log('Playground Bundler: Raw response end:', '...' + jsonText.substring(jsonText.length - 200));
 			
 			// Check if the response looks truncated
 			if (!jsonText.trim().endsWith('}')) {
-				console.error('Playground Bundler: Response appears truncated - does not end with }');
 				throw new Error('Response appears to be truncated or corrupted');
 			}
 			
@@ -248,12 +217,8 @@ const PlaygroundBundlerSidebar = () => {
 		}
 
 		try {
-			console.log('Playground Bundler: Opening in WordPress Playground...');
-
 			// Use the public blueprint URL directly
 			const playgroundUrl = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(bundleData.blueprint_url);
-
-			console.log('Playground Bundler: Opening URL:', playgroundUrl);
 
 			window.open(
 				playgroundUrl,
@@ -490,9 +455,7 @@ const PlaygroundBundlerSidebar = () => {
 	);
 };
 
-console.log('Playground Bundler: About to register plugin...');
 registerPlugin( 'playground-bundler', {
 	render: PlaygroundBundlerSidebar,
 	icon: 'download',
 } );
-console.log('Playground Bundler: Plugin registered successfully!');

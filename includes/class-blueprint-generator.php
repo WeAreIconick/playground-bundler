@@ -1,7 +1,5 @@
 <?php
 
-require_once plugin_dir_path(__FILE__) . 'class-asset-detector.php';
-
 class Playground_Blueprint_Generator {
     
     private $post_id;
@@ -16,13 +14,22 @@ class Playground_Blueprint_Generator {
         }
         
         $this->post_id = absint($post_id);
-        $this->detector = new Playground_Asset_Detector($post_id);
+        
+        // Check if asset detector class exists before instantiating
+        if (class_exists('Playground_Asset_Detector')) {
+            $this->detector = new Playground_Asset_Detector($post_id);
+        }
     }
     
     public function create_bundle() {
         // Check ZipArchive availability
         if (!class_exists('ZipArchive')) {
             return new WP_Error('no_zip', __('ZipArchive extension not available.', 'playground-bundler'));
+        }
+        
+        // Check if detector is available
+        if (!$this->detector) {
+            return new WP_Error('no_detector', __('Asset detector not available.', 'playground-bundler'));
         }
         
         // Analyze post content

@@ -14,6 +14,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Load required class files
+require_once plugin_dir_path(__FILE__) . 'includes/class-asset-detector.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-blueprint-generator.php';
+
 class Playground_Bundler_Plugin {
     
     public function __construct() {
@@ -26,18 +30,6 @@ class Playground_Bundler_Plugin {
         add_action('enqueue_block_assets', array($this, 'enqueue_editor_assets'));
         add_action('admin_enqueue_scripts', array($this, 'maybe_enqueue_editor_assets'));
         add_action('rest_api_init', array($this, 'register_rest_routes'));
-        
-        // Load required class files with safety checks
-        $asset_detector_file = plugin_dir_path(__FILE__) . 'includes/class-asset-detector.php';
-        $blueprint_generator_file = plugin_dir_path(__FILE__) . 'includes/class-blueprint-generator.php';
-        
-        if (file_exists($asset_detector_file)) {
-            require_once $asset_detector_file;
-        }
-        
-        if (file_exists($blueprint_generator_file)) {
-            require_once $blueprint_generator_file;
-        }
     }
     
     public function enqueue_editor_assets() {
