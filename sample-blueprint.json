@@ -1,0 +1,121 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/?p=5",
+  "preferredVersions": {
+    "php": "8.3",
+    "wp": "latest"
+  },
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\n\n// Set permalink structure to use post names\nupdate_option('permalink_structure', '/%postname%/');\nflush_rewrite_rules();\n\n// Create a sample post with ID 5\n$post_data = array(\n    'post_title' => 'Sample Readme Post',\n    'post_content' => '<!-- wp:paragraph -->\n<p>This is a sample post created by the Playground Bundler plugin. It demonstrates how custom blocks and content can be bundled into a WordPress Playground environment.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":2} -->\n<h2>Features Demonstrated</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul>\n<li>Custom block detection</li>\n<li>Media asset bundling</li>\n<li>Plugin installation</li>\n<li>Post creation with specific ID</li>\n<li>Permalink structure configuration</li>\n</ul>\n<!-- /wp:list -->\n\n<!-- wp:image {\"align\":\"center\"} -->\n<figure class=\"wp-block-image aligncenter\">\n    <img src=\"https://via.placeholder.com/600x300/0073aa/ffffff?text=Sample+Image\" alt=\"Sample Image\" />\n</figure>\n<!-- /wp:image -->\n\n<!-- wp:quote {\"align\":\"center\"} -->\n<blockquote class=\"wp-block-quote aligncenter\">\n    <p>This blueprint demonstrates the power of WordPress Playground for creating shareable WordPress environments!</p>\n    <cite>Playground Bundler Plugin</cite>\n</blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>// Sample code block\nfunction playground_bundler_sample() {\n    return \"Hello from WordPress Playground!\";\n}</code></pre>\n<!-- /wp:code -->\n\n<!-- wp:group {\"backgroundColor\":\"vivid-cyan-blue\",\"textColor\":\"white\"} -->\n<div class=\"wp-block-group has-white-color has-vivid-cyan-blue-background-color has-text-color has-background\">\n    <div class=\"wp-block-group__inner-container\">\n        <!-- wp:paragraph {\"align\":\"center\"} -->\n        <p class=\"has-text-align-center\">This is a styled group block with custom colors!</p>\n        <!-- /wp:paragraph -->\n    </div>\n</div>\n<!-- /wp:group -->',
+    'post_status' => 'publish',
+    'post_type' => 'post',
+    'post_author' => 1,
+    'post_name' => 'readme',
+    'meta_input' => array(\n        '_thumbnail_id' => '',\n        '_edit_last' => 1,\n        '_edit_lock' => time() . ':1'\n    )\n);\n\n// Try to insert the post\n$post_id = wp_insert_post($post_data);\n\n// If the post wasn't created with ID 5, update it\nif ($post_id && $post_id !== 5) {\n    $post_data['ID'] = 5;\n    wp_update_post($post_data);\n} elseif (!$post_id) {\n    // Fallback: direct database insert\n    global $wpdb;\n    $wpdb->insert(\n        $wpdb->posts,\n        array(\n            'ID' => 5,\n            'post_title' => 'Sample Readme Post',\n            'post_content' => $post_data['post_content'],\n            'post_status' => 'publish',\n            'post_type' => 'post',\n            'post_author' => 1,\n            'post_name' => 'readme',\n            'post_date' => current_time('mysql'),\n            'post_date_gmt' => current_time('mysql', 1),\n            'post_modified' => current_time('mysql'),\n            'post_modified_gmt' => current_time('mysql', 1)\n        ),\n        array('%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s')\n    );\n}\n\n// Update post meta\nupdate_post_meta(5, '_thumbnail_id', '');\nupdate_post_meta(5, '_edit_last', 1);\nupdate_post_meta(5, '_edit_lock', time() . ':1');\n\n// Flush rewrite rules after post creation\nflush_rewrite_rules();\n\n// Set some WordPress options for better experience\nupdate_option('blogdescription', 'WordPress Playground Demo');\nupdate_option('start_of_week', 1);\nupdate_option('use_balanceTags', 1);\nupdate_option('default_category', 1);\nupdate_option('default_post_format', '0');\nupdate_option('mailserver_url', 'mail.example.com');\nupdate_option('mailserver_login', 'login@example.com');\nupdate_option('mailserver_pass', 'password');\nupdate_option('default_email_category', 1);\nupdate_option('show_comments', 1);\nupdate_option('moderation_notify', 1);\nupdate_option('comments_notify', 1);\nupdate_option('comment_moderation', 0);\nupdate_option('require_name_email', 1);\nupdate_option('comment_registration', 0);\nupdate_option('close_comments_for_old_posts', 0);\nupdate_option('close_comments_days_old', 14);\nupdate_option('thread_comments', 1);\nupdate_option('thread_comments_depth', 5);\nupdate_option('page_comments', 0);\nupdate_option('comments_per_page', 50);\nupdate_option('default_comments_page', 'newest');\nupdate_option('comment_order', 'asc');\nupdate_option('sticky_posts', array());\nupdate_option('widget_categories', array());\nupdate_option('widget_text', array());\nupdate_option('widget_rss', array());\nupdate_option('uninstall_plugins', array());\nupdate_option('timezone_string', '');\nupdate_option('blog_charset', 'UTF-8');\nupdate_option('moderation_keys', '');\nupdate_option('active_plugins', array());\nupdate_option('category_base', '');\nupdate_option('tag_base', '');\nupdate_option('show_on_front', 'posts');\nupdate_option('default_role', 'subscriber');\nupdate_option('db_version', 55853);\nupdate_option('admin_email', 'admin@example.com');\nupdate_option('new_admin_email', 'admin@example.com');\nupdate_option('home', 'https://playground.wordpress.net');\nupdate_option('siteurl', 'https://playground.wordpress.net');\nupdate_option('template', 'twentytwentyfour');\nupdate_option('stylesheet', 'twentytwentyfour');\nupdate_option('comment_registration', 0);\nupdate_option('html_type', 'text/html');\nupdate_option('use_trackback', 0);\nupdate_option('default_role', 'subscriber');\nupdate_option('db_version', 55853);\nupdate_option('uploads_use_yearmonth_folders', 1);\nupdate_option('upload_path', '');\nupdate_option('blog_public', 1);\nupdate_option('default_link_category', 2);\nupdate_option('show_on_front', 'posts');\nupdate_option('tag_base', '');\nupdate_option('show_avatars', 1);\nupdate_option('avatar_rating', 'G');\nupdate_option('avatar_default', 'mystery');\nupdate_option('large_size_w', 1024);\nupdate_option('large_size_h', 1024);\nupdate_option('medium_size_w', 300);\nupdate_option('medium_size_h', 300);\nupdate_option('thumbnail_size_w', 150);\nupdate_option('thumbnail_size_h', 150);\nupdate_option('thumbnail_crop', 1);\nupdate_option('medium_large_size_w', 768);\nupdate_option('medium_large_size_h', 0);\nupdate_option('embed_autourls', 1);\nupdate_option('embed_size_w', 500);\nupdate_option('embed_size_h', 500);\nupdate_option('embed_size_h_unit', 'px');\nupdate_option('embed_size_w_unit', 'px');\nupdate_option('embed_defaults', array('youtube' => array('width' => 500, 'height' => 500)));\nupdate_option('embed_autourls', 1);\nupdate_option('embed_size_w', 500);\nupdate_option('embed_size_h', 500);\nupdate_option('embed_size_h_unit', 'px');\nupdate_option('embed_size_w_unit', 'px');\nupdate_option('embed_defaults', array('youtube' => array('width' => 500, 'height' => 500)));\n\n// Create some sample categories\nwp_create_category('Sample Category');\nwp_create_category('WordPress Playground');\nwp_create_category('Demo Content');\n\n// Create some sample tags\nwp_create_tag('playground');\nwp_create_tag('demo');\nwp_create_tag('wordpress');\nwp_create_tag('bundler');\n\n// Assign categories and tags to our post\nwp_set_post_categories(5, array(1, 2, 3));\nwp_set_post_tags(5, array('playground', 'demo', 'wordpress', 'bundler'));\n\n// Final flush of rewrite rules\nflush_rewrite_rules();\n\n// Log success\nerror_log('Playground Bundler: Sample post created successfully with ID 5');\n?>"
+    },
+    {
+      "step": "installTheme",
+      "themeData": {
+        "resource": "wordpress.org/themes",
+        "slug": "twentytwentyfour"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "setSiteOptions",
+      "options": {
+        "blogname": "WordPress Playground Demo",
+        "blogdescription": "A demonstration of WordPress Playground capabilities",
+        "admin_email": "admin@example.com",
+        "users_can_register": false,
+        "default_role": "subscriber",
+        "timezone_string": "America/New_York",
+        "date_format": "F j, Y",
+        "time_format": "g:i a",
+        "start_of_week": 1,
+        "use_balanceTags": true,
+        "default_category": 1,
+        "default_post_format": "0",
+        "mailserver_url": "mail.example.com",
+        "mailserver_login": "login@example.com",
+        "mailserver_pass": "password",
+        "default_email_category": 1,
+        "show_comments": true,
+        "moderation_notify": true,
+        "comments_notify": true,
+        "comment_moderation": false,
+        "require_name_email": true,
+        "comment_registration": false,
+        "close_comments_for_old_posts": false,
+        "close_comments_days_old": 14,
+        "thread_comments": true,
+        "thread_comments_depth": 5,
+        "page_comments": false,
+        "comments_per_page": 50,
+        "default_comments_page": "newest",
+        "comment_order": "asc",
+        "sticky_posts": [],
+        "widget_categories": [],
+        "widget_text": [],
+        "widget_rss": [],
+        "uninstall_plugins": [],
+        "blog_charset": "UTF-8",
+        "moderation_keys": "",
+        "active_plugins": [],
+        "category_base": "",
+        "tag_base": "",
+        "show_on_front": "posts",
+        "default_role": "subscriber",
+        "db_version": 55853,
+        "new_admin_email": "admin@example.com",
+        "home": "https://playground.wordpress.net",
+        "siteurl": "https://playground.wordpress.net",
+        "template": "twentytwentyfour",
+        "stylesheet": "twentytwentyfour",
+        "html_type": "text/html",
+        "use_trackback": false,
+        "uploads_use_yearmonth_folders": true,
+        "upload_path": "",
+        "blog_public": true,
+        "default_link_category": 2,
+        "show_avatars": true,
+        "avatar_rating": "G",
+        "avatar_default": "mystery",
+        "large_size_w": 1024,
+        "large_size_h": 1024,
+        "medium_size_w": 300,
+        "medium_size_h": 300,
+        "thumbnail_size_w": 150,
+        "thumbnail_size_h": 150,
+        "thumbnail_crop": true,
+        "medium_large_size_w": 768,
+        "medium_large_size_h": 0,
+        "embed_autourls": true,
+        "embed_size_w": 500,
+        "embed_size_h": 500,
+        "embed_size_h_unit": "px",
+        "embed_size_w_unit": "px",
+        "embed_defaults": {
+          "youtube": {
+            "width": 500,
+            "height": 500
+          }
+        }
+      }
+    }
+  ]
+}
+
+

@@ -1,5 +1,5 @@
 === WordPress Playground Blueprint Bundler ===
-Contributors: yourname
+Contributors: iconick
 Tags: wordpress, playground, blueprint, bundler, blocks
 Requires at least: 6.0
 Tested up to: 6.4
